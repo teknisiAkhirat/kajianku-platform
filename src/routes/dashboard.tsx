@@ -86,7 +86,7 @@ function DashboardPage() {
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gold text-gold-foreground transition-transform group-hover:scale-110">
             <Plus className="h-6 w-6" />
           </div>
-        </button>
+        </Link>
 
         {/* History */}
         <section className="mt-12">
