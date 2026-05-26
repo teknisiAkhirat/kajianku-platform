@@ -72,9 +72,8 @@ function DashboardPage() {
         </div>
 
         {/* Primary CTA */}
-        <button
-          type="button"
-          onClick={() => alert("Fitur akan tersedia di fase berikutnya, insyaAllah.")}
+        <Link
+          to="/kajian/baru"
           className="group mt-8 flex w-full items-center justify-between gap-4 rounded-2xl border border-foreground/10 bg-primary p-6 text-left text-primary-foreground transition-all hover:border-gold sm:p-8"
         >
           <div>
@@ -87,7 +86,7 @@ function DashboardPage() {
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gold text-gold-foreground transition-transform group-hover:scale-110">
             <Plus className="h-6 w-6" />
           </div>
-        </button>
+        </Link>
 
         {/* History */}
         <section className="mt-12">
