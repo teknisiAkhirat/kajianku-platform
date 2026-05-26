@@ -72,9 +72,8 @@ function DashboardPage() {
         </div>
 
         {/* Primary CTA */}
-        <button
-          type="button"
-          onClick={() => alert("Fitur akan tersedia di fase berikutnya, insyaAllah.")}
+        <Link
+          to="/kajian/baru"
           className="group mt-8 flex w-full items-center justify-between gap-4 rounded-2xl border border-foreground/10 bg-primary p-6 text-left text-primary-foreground transition-all hover:border-gold sm:p-8"
         >
           <div>
