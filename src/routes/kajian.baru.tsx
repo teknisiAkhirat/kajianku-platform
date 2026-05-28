@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
+import { YoutubeTranscript } from "youtube-transcript";
 
 export const Route = createFileRoute("/kajian/baru")({
   component: KajianBaruPage,
@@ -71,6 +72,30 @@ function KajianBaruPage() {
     setHasil("");
 
     try {
+      let transcriptInput = inputTranskrip;
+
+      if (tab === "youtube") {
+        const videoIdMatch = youtubeUrl.match(
+          /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+        );
+        if (!videoIdMatch?.[1]) {
+          setProcessError("Tidak dapat mengekstrak ID video dari URL.");
+          setProcessing(false);
+          return;
+        }
+
+        try {
+          const transcriptData = await YoutubeTranscript.fetchTranscript(videoIdMatch[1]);
+          transcriptInput = transcriptData.map((item) => item.text).join(" ");
+        } catch {
+          setProcessError(
+            "Subtitle tidak tersedia untuk video ini. Coba upload file SRT manual."
+          );
+          setProcessing(false);
+          return;
+        }
+      }
+
       const endpoint = "https://api.groq.com/openai/v1/chat/completions";
 
       const prompt = [
@@ -83,11 +108,11 @@ function KajianBaruPage() {
         sumber.trim().length > 0 ? `- Sumber: ${sumber.trim()}` : "- Sumber: -",
         "",
         tab === "youtube"
-          ? "Input transkrip berupa URL YouTube. Jangan membuat transkrip fiktif; jika tidak ada teks transkrip, jelaskan keterbatasan dan minta teks transkrip."
+          ? "Input transkrip berasal dari subtitle otomatis YouTube. Mungkin ada kesalahan penulisan atau kalimat yang tidak sempurna, tapi tetap olah dengan sebaik mungkin."
           : "Input transkrip berupa teks.",
         "",
         "Transkrip:",
-        inputTranskrip,
+        transcriptInput,
       ].join("\n");
 
       const res = await fetch(endpoint, {
