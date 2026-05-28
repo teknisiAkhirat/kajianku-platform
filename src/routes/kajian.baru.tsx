@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, FileAudio, FileText, Youtube } from "lucide-react";
+import { ArrowLeft, Check, FileAudio, FileText, Upload, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,30 @@ function isValidYouTubeUrl(raw: string): boolean {
   } catch {
     return /(youtube\.com|youtu\.be)/i.test(url);
   }
+}
+
+function parseSrtToText(srt: string): string {
+  return srt
+    .replace(/\r\n/g, "\n")
+    .split(/\n\n+/)
+    .map((block) => {
+      const lines = block.trim().split("\n");
+      const textLines = lines.filter((line) => !/^\d+$/.test(line) && !line.includes("-->"));
+      return textLines.join(" ");
+    })
+    .filter((text) => text.length > 0)
+    .join("\n\n");
+}
+
+function handleFileUpload(file: File, onLoaded: (text: string) => void) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const content = e.target?.result as string;
+    const isSrt = file.name.toLowerCase().endsWith(".srt");
+    const text = isSrt ? parseSrtToText(content) : content;
+    onLoaded(text);
+  };
+  reader.readAsText(file);
 }
 
 function KajianBaruPage() {
@@ -283,11 +307,34 @@ function KajianBaruPage() {
 
           <TabsContent value="teks" className="mt-6">
             <label className="text-sm font-medium">Tempel transkrip kajian</label>
+            <div className="mt-2">
+              <input
+                type="file"
+                id="file-upload"
+                accept=".srt,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file, (text) => setTranskrip((prev) => (prev ? `${prev}\n\n${text}` : text)));
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById("file-upload")?.click()}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Upload File
+              </Button>
+              <span className="ml-3 text-xs text-muted-foreground">Format: .srt, .txt</span>
+            </div>
             <Textarea
               value={transkrip}
               onChange={(e) => setTranskrip(e.target.value)}
               placeholder="Tempel transkrip kajian di sini..."
-              className="mt-2 min-h-[240px]"
+              className="mt-3 min-h-[240px]"
             />
             <p className="mt-2 text-xs text-muted-foreground">
               {transkrip.trim().length} karakter
