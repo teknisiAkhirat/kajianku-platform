@@ -60,9 +60,9 @@ function KajianBaruPage() {
   async function handleProcess() {
     if (!canProcess) return;
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
     if (!apiKey) {
-      setProcessError("VITE_GEMINI_API_KEY belum di-set.");
+      setProcessError("VITE_GROQ_API_KEY belum di-set.");
       return;
     }
 
@@ -71,8 +71,7 @@ function KajianBaruPage() {
     setHasil("");
 
     try {
-      const endpoint =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+      const endpoint = "https://api.groq.com/openai/v1/chat/completions";
 
       const prompt = [
         "Tolong olah transkrip kajian berikut menjadi dokumen Markdown (.md) yang rapi.",
@@ -91,11 +90,15 @@ function KajianBaruPage() {
         inputTranskrip,
       ].join("\n");
 
-      const res = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
+      const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
         }),
       });
 
@@ -105,18 +108,12 @@ function KajianBaruPage() {
       }
 
       const data = (await res.json()) as {
-        candidates?: Array<{
-          content?: { parts?: Array<{ text?: string }> };
-        }>;
+        choices?: Array<{ message?: { content?: string } }>;
       };
 
-      const text =
-        data.candidates?.[0]?.content?.parts
-          ?.map((p) => p.text)
-          .filter((t): t is string => Boolean(t))
-          .join("") ?? "";
+      const text = data.choices?.[0]?.message?.content ?? "";
 
-      if (!text.trim()) throw new Error("Respons kosong dari Gemini.");
+      if (!text.trim()) throw new Error("Respons kosong dari Groq.");
 
       setHasil(text);
     } catch (e) {
