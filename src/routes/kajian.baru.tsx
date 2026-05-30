@@ -43,6 +43,38 @@ const SYSTEM_PROMPT_F =
 const SYSTEM_PROMPT_G =
   "Kamu adalah social media strategist konten dakwah Islam Indonesia. Output hanya berisi urutan platform sesuai format, tanpa komentar tambahan.";
 
+const CHUNK_MAX_CHARS = 3500;
+
+function splitByParagraphs(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+  const chunks: string[] = [];
+  const paragraphs = text.split(/\n\n+/);
+  let current = "";
+  for (const para of paragraphs) {
+    if (para.length > maxChars) {
+      if (current) { chunks.push(current); current = ""; }
+      const words = para.split(" ");
+      let sub = "";
+      for (const word of words) {
+        if (sub.length + word.length + 1 <= maxChars) {
+          sub += (sub ? " " : "") + word;
+        } else {
+          chunks.push(sub);
+          sub = word;
+        }
+      }
+      if (sub) current = sub;
+    } else if (current.length + para.length + 2 <= maxChars) {
+      current += (current ? "\n\n" : "") + para;
+    } else {
+      if (current) chunks.push(current);
+      current = para;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
 function isValidYouTubeUrl(raw: string): boolean {
   const url = raw.trim();
   if (!url) return false;
@@ -233,59 +265,100 @@ function KajianBaruPage() {
 
       if (kajianError) throw kajianError;
 
-      setProgress("Prompt 0: membersihkan transkrip penuh...");
-      const prompt0 = [
-        "Bersihkan transkrip kajian berikut sesuai aturan ini:",
-        "",
-        "Identitas kajian:",
-        `Ustadz: ${namaUstadz.trim()}`,
-        `Tema/Kitab: ${temaKitab.trim()}`,
-        `Episode: ${episode.trim()}`,
-        `Sumber: ${sumber.trim().length > 0 ? sumber.trim() : "-"}`,
-        "",
-        "YANG HARUS DIHAPUS:",
-        "- Timestamp (contoh: 00:00:08,620 --> 00:00:13,160)",
-        "- Nomor urut subtitle (1, 2, 3, dst)",
-        "- Watermark aplikasi (contoh: Transcribed by TurboScribe.ai...)",
-        "- Penggalan kalimat akibat potongan SRT — sambung jadi kalimat utuh",
-        "",
-        "YANG HARUS DIPERTAHANKAN:",
-        "- Semua kata yang diucapkan ustadz persis apa adanya",
-        "- Interaksi dengan hadirin, percakapan informal pembuka",
-        "- Logat, gaya bicara, kata seru, jeda, pengulangan kata ustadz",
-        "",
-        "KOREKSI YANG DIIZINKAN:",
-        "- Typo yang jelas",
-        "- Teks Arab dari alfabet → tulisan Arab asli",
-        '- Nama ulama/kitab salah → koreksi dengan format: Nama Benar *(transkripsi: "nama salah")*',
-        "",
-        "UNTUK AYAT AL-QUR'AN:",
-        "- Tulis dalam tulisan Arab",
-        "- Sertakan nama surat dan nomor ayat: (QS. Al-Fatihah: 1)",
-        "",
-        "UNTUK HADITS:",
-        "- Tandai setiap hadits",
-        "- Sertakan nomor dan derajat hadits jika diketahui",
-        "- Jika tidak diketahui: ⚠️ perlu verifikasi",
-        "",
-        "FORMAT OUTPUT:",
-        `- Judul: # ${temaKitab.trim()}`,
-        `- Header: **Ustadz:** ${namaUstadz.trim()} | **Tema:** ${temaKitab.trim()} | **Episode:** ${episode.trim()}`,
-        "- Setiap sub-bab diberi heading ## (Heading 2)",
-        "- Output dalam format Markdown",
-        "",
-        "LARANGAN KERAS:",
-        "- JANGAN parafrase",
-        "- JANGAN tambah kata yang tidak diucapkan ustadz",
-        "- JANGAN kurangi kata apapun",
-        "- JANGAN tafsirkan atau simpulkan sendiri",
-        "- JANGAN tambah komentar atau penjelasan di luar transkrip",
-        "",
-        "Transkrip mentah:",
-        transcriptInput,
-      ].join("\n");
+      setProgress("Memecah transkrip menjadi bagian...");
+      const chunks = splitByParagraphs(transcriptInput, CHUNK_MAX_CHARS);
+      const total = chunks.length;
 
-      const transkripPenuh = await callGroq(SYSTEM_PROMPT_0, prompt0);
+      let transkripPenuh = "";
+
+      for (let i = 0; i < chunks.length; i++) {
+        const isFirst = i === 0;
+        const isLast = i === total - 1;
+
+        if (isFirst) {
+          setProgress(`Prompt 0 (bagian ${i + 1}/${total}): membersihkan transkrip...`);
+          const prompt0 = [
+            "Bersihkan transkrip kajian berikut sesuai aturan ini:",
+            "",
+            "Identitas kajian:",
+            `Ustadz: ${namaUstadz.trim()}`,
+            `Tema/Kitab: ${temaKitab.trim()}`,
+            `Episode: ${episode.trim()}`,
+            `Sumber: ${sumber.trim().length > 0 ? sumber.trim() : "-"}`,
+            "",
+            "YANG HARUS DIHAPUS:",
+            "- Timestamp (contoh: 00:00:08,620 --> 00:00:13,160)",
+            "- Nomor urut subtitle (1, 2, 3, dst)",
+            "- Watermark aplikasi (contoh: Transcribed by TurboScribe.ai...)",
+            "- Penggalan kalimat akibat potongan SRT — sambung jadi kalimat utuh",
+            "",
+            "YANG HARUS DIPERTAHANKAN:",
+            "- Semua kata yang diucapkan ustadz persis apa adanya",
+            "- Interaksi dengan hadirin, percakapan informal pembuka",
+            "- Logat, gaya bicara, kata seru, jeda, pengulangan kata ustadz",
+            "",
+            "KOREKSI YANG DIIZINKAN:",
+            "- Typo yang jelas",
+            "- Teks Arab dari alfabet → tulisan Arab asli",
+            '- Nama ulama/kitab salah → koreksi dengan format: Nama Benar *(transkripsi: "nama salah")*',
+            "",
+            "UNTUK AYAT AL-QUR'AN:",
+            "- Tulis dalam tulisan Arab",
+            "- Sertakan nama surat dan nomor ayat: (QS. Al-Fatihah: 1)",
+            "",
+            "UNTUK HADITS:",
+            "- Tandai setiap hadits",
+            "- Sertakan nomor dan derajat hadits jika diketahui",
+            "- Jika tidak ketahui: ⚠️ perlu verifikasi",
+            "",
+            "FORMAT OUTPUT:",
+            `- Judul: # ${temaKitab.trim()}`,
+            `- Header: **Ustadz:** ${namaUstadz.trim()} | **Tema:** ${temaKitab.trim()} | **Episode:** ${episode.trim()}`,
+            "- Setiap sub-bab diberi heading ## (Heading 2)",
+            "- Output dalam format Markdown",
+            "",
+            "LARANGAN KERAS:",
+            "- JANGAN parafrase",
+            "- JANGAN tambah kata yang tidak diucapkan ustadz",
+            "- JANGAN kurangi kata apapun",
+            "- JANGAN tafsirkan atau simpulkan sendiri",
+            "- JANGAN tambah komentar atau penjelasan di luar transkrip",
+            "",
+            "Transkrip mentah bagian 1/" + total + ":",
+            chunks[i],
+          ].join("\n");
+          transkripPenuh = await callGroq(SYSTEM_PROMPT_0, prompt0);
+        } else {
+          setProgress(`Prompt 0 (bagian ${i + 1}/${total}): melanjutkan pembersihan...`);
+          const promptCont = [
+            "Lanjutkan pembersihan transkrip kajian berikut.",
+            "",
+            "Aturan sama seperti sebelumnya:",
+            "- Hapus timestamp, nomor subtitle, watermark",
+            "- Koreksi typo jelas, teks Arab dari alfabet",
+            "- Pertahankan semua kata ustadz persis apa adanya",
+            "- JANGAN parafrase, JANGAN tambah, JANGAN kurangi",
+            "- JANGAN tambah heading ## baru — lanjutkan konten yang sudah ada",
+            "",
+            "Output: lanjutkan langsung dengan teks transkrip yang sudah dibersihkan (mulai dari paragraf pertama, TANPA heading judul/header).",
+            "",
+            "Potongan transkrip bagian " + (i + 1) + "/" + total + ":",
+            chunks[i],
+          ].join("\n");
+          const lanjutan = await callGroq(SYSTEM_PROMPT_0, promptCont);
+          const cleanedLanjutan = lanjutan
+            .replace(/^# .*$/m, "")
+            .replace(/^\*\*Ustadz:.*$/m, "")
+            .replace(/^\*\*Tema:.*$/m, "")
+            .replace(/^---$/m, "")
+            .replace(/^\*\*Episode:.*$/m, "")
+            .replace(/^\*\*Sumber:.*$/m, "")
+            .trim();
+          if (cleanedLanjutan) {
+            transkripPenuh += "\n\n" + cleanedLanjutan;
+          }
+        }
+      }
       setHasil(transkripPenuh);
 
       const subBabSections = splitByHeading(transkripPenuh);
