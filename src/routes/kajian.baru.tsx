@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
-import { YoutubeTranscript } from "youtube-transcript";
+import { YoutubeTranscript, YoutubeTranscriptError } from "youtube-transcript";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/kajian/baru")({
@@ -241,10 +241,22 @@ function KajianBaruPage() {
         try {
           const transcriptData = await YoutubeTranscript.fetchTranscript(videoIdMatch[1]);
           transcriptInput = transcriptData.map((item) => item.text).join(" ");
-        } catch {
-          setProcessError(
-            "Subtitle tidak tersedia untuk video ini. Coba upload file SRT manual."
-          );
+        } catch (err) {
+          if (err instanceof YoutubeTranscriptError) {
+            if (err.message.includes("disabled")) {
+              setProcessError("Subtitle dinonaktifkan oleh pemilik video ini.");
+            } else if (err.message.includes("no longer available")) {
+              setProcessError("Video tidak ditemukan atau sudah dihapus.");
+            } else if (err.message.includes("No transcripts are available")) {
+              setProcessError("Subtitle tidak tersedia untuk video ini. Coba upload file SRT manual.");
+            } else if (err.message.includes("too many requests") || err.message.includes("captcha")) {
+              setProcessError("Terlalu banyak request ke YouTube. Tunggu sebentar lalu coba lagi, atau upload file SRT.");
+            } else {
+              setProcessError(`Subtitle tidak tersedia (${err.message}). Coba upload file SRT manual.`);
+            }
+          } else {
+            setProcessError("Gagal mengambil subtitle dari YouTube. Pastikan koneksi internet stabil, atau upload file SRT manual.");
+          }
           setProcessing(false);
           return;
         }
