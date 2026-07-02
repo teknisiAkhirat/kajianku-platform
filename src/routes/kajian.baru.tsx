@@ -211,7 +211,7 @@ function KajianBaruPage() {
 
     try {
       const today = getTodayJakartaDate();
-      const { data: usageExisting, error: usageError } = await supabase
+      const { data: usageExisting, error: usageError } = await (supabase as any)
         .from("usage_log")
         .select("id, jumlah")
         .eq("user_id", user!.id)
