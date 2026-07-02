@@ -263,7 +263,7 @@ function KajianBaruPage() {
       }
 
       setProgress("Membuat record kajian...");
-      const { data: kajianRow, error: kajianError } = await supabase
+      const { data: kajianRow, error: kajianError } = await (supabase as any)
         .from("kajian")
         .insert({
           user_id: user!.id,
