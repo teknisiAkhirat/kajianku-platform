@@ -694,18 +694,18 @@ function KajianBaruPage() {
       }
 
       setProgress("Menyimpan sub-bab ke database...");
-      const { error: subBabError } = await supabase.from("sub_bab").insert(subBabRows);
+      const { error: subBabError } = await (supabase as any).from("sub_bab").insert(subBabRows);
       if (subBabError) throw subBabError;
 
       setProgress("Mencatat usage log...");
       if (usageExisting?.id) {
-        const { error: usageUpdateError } = await supabase
+        const { error: usageUpdateError } = await (supabase as any)
           .from("usage_log")
           .update({ jumlah: (usageExisting.jumlah ?? 0) + 1 })
           .eq("id", usageExisting.id);
         if (usageUpdateError) throw usageUpdateError;
       } else {
-        const { error: usageInsertError } = await supabase.from("usage_log").insert({
+        const { error: usageInsertError } = await (supabase as any).from("usage_log").insert({
           user_id: user!.id,
           tanggal: today,
           jumlah: 1,
